@@ -1,0 +1,45 @@
+# Input:
+#   T: number of tables
+#   P: numer of covariate variables
+#   R, C: initial and final aggregated categories
+#   Y.2[T, C]: final aggregated matrices
+#   f.1[T, R]: initial aggregated matrices as fractions
+#   X[T, P]: covariate
+#   N[T]: aggregated counts
+#   l: precision related prior
+# Output:
+#   theta.2[T, C]: final estimated aggregated matrices as fractions
+#   delta[R, C]: intercept in logit space
+#   gamma[P, R, C]: parameter coefficient in logit space
+#   beta[T, R, C]: estimated transition matrix (by value)
+#   lambda: precision related value for beta
+
+model {
+  for (t in 1:T) {
+    Y.2[t, 1:C] ~ dmulti(theta.2[t, 1:C], N[t])
+    for (c in 1:C) {
+      theta.2[t, c] <- inprod(beta[t, 1:R, c], f.1[t, 1:R])
+    }
+    for (r in 1:R) {
+      for (c in 1:C) {
+        beta.aux[t, r, c] <- exp(delta[r, c] + inprod(gamma[1:P, r, c], X[t, 1:P]))
+      }
+      beta[t, r, 1:C] ~ ddirch(lambda * beta.aux[t, r, 1:C])
+    }
+  }
+  for (r in 1:R) {
+    for (c in 1:(C-1)) {
+    	for (p in 1:P) {
+    	  gamma.aux[p, r, c] ~ dnorm(0, 1e-6)
+    	  gamma[p, r, c] <- gamma.aux[p, r, c]
+    	}
+      delta.aux[r, c] ~ dnorm(0, 1e-6)
+      delta[r, c] <- delta.aux[r, c]
+    }
+    for (p in 1:P) {
+      gamma[p, r, C] <- 0
+    }
+    delta[r, C] <- 0
+  }
+  lambda ~ dexp(l)
+}

@@ -1,0 +1,5 @@
+
+model {
+  ## ICAR distribution for spatially structured random effects
+  upsilon[1:T] ~ car.normal(ADJ.adj[], ADJ.weights[], ADJ.num[], tau.u)
+}

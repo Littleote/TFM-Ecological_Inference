@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Generated plots and other folders
+plots/
+other/
+latex/
+data/US-counties/
