@@ -44,26 +44,28 @@ parse <- function(df, row, stride, offset = 2) {
   as.numeric(gsub(",", "", df[row, stride * 1:data$T - stride + offset]))
 }
 var.income <- parse(df.income, 12, 8)
-var.age <- parse(df.age.gender, 19, 4)
-var.gender <- parse(df.age.gender, 93, 4) / parse(df.age.gender, 92, 4)
 var.education.white <- parse(df.education, 31, 4) / parse(df.education, 30, 4)
 var.education.black <- parse(df.education, 37, 4) / parse(df.education, 36, 4)
-var.employment.white.collar <- (parse(df.employment, 2, 12) + parse(df.employment, 4, 12)) / parse(df.employment, 1, 12)
-single.covariate <- var.income
-multi.covariate <- rbind(
-  var.income,
-  var.age,
-  var.gender,
-  var.education.white,
-  var.education.black,
-  var.employment.white.collar
-)
-multi.covariate <- whitening::whiten(t(multi.covariate))
+var.education.gap <- var.education.white - var.education.black
+var.both <- whitening::whiten(cbind(var.income, var.education.gap))
+# var.age <- parse(df.age.gender, 19, 4)
+# var.gender <- parse(df.age.gender, 93, 4) / parse(df.age.gender, 92, 4)
+# var.employment.white.collar <- (parse(df.employment, 2, 12) + parse(df.employment, 4, 12)) / parse(df.employment, 1, 12)
+# single.covariate <- var.income
+# multi.covariate <- cbind(
+#   var.income,
+#   var.age,
+#   var.gender,
+#   var.education.white,
+#   var.education.black,
+#   var.employment.white.collar
+# )
+# multi.covariate <- whitening::whiten(multi.covariate)
 geom.louisiana <- geom[geom$STATEFP == 22, ]
 parish.idx <- order(geom.louisiana$NAME)
-reorder <- sample(data$T)
+# reorder <- sample(data$T)
 adjacency <- 1 == nb2mat(poly2nb(geom.louisiana), style = "B")[parish.idx, parish.idx]
-rand.adjacency <- adjacency[reorder, reorder]
+# rand.adjacency <- adjacency[reorder, reorder]
 bounds.args <- list(ylim = c(0, 1))
 spatial.args <- list(map = geom.louisiana)
 
@@ -98,27 +100,30 @@ table <- NULL
 run <- curry(
   logit.covariate.model, "logit covariate", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 30000
+  burn = 30000, rand.effects = TRUE
 )
-table <- run(table, "random covariate", X = rand.covariate)
-table <- run(table, "single covariate", X = single.covariate)
-table <- run(table, "multiple covariate", X = multi.covariate)
+table <- run(table, "no covariate", X = NULL)
+table <- run(table, "income", X = var.income)
+table <- run(table, "education", X = var.education.gap)
+table <- run(table, "income and education", X = var.both)
 
-# LOGIT COVARIATE + RANDOMNESS
+# LOGIT COVARIATE WITHOUT RANDOM EFFECT
 run <- curry(
-  logit.covariate.model, "logit covariate + randomness", data, true, BUGS.config,
+  logit.covariate.model, "logit covariate without random effects", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 50000, free = TRUE
+  burn = 50000, rand.effects = FALSE
 )
-table <- run(table, "random covariate", X = rand.covariate)
-table <- run(table, "single covariate", X = single.covariate)
-table <- run(table, "multiple covariate", X = multi.covariate)
+table <- run(table, "no covariate", X = NULL)
+table <- run(table, "income", X = var.income)
+table <- run(table, "education", X = var.education.gap)
+table <- run(table, "income and education", X = var.both)
 
 # CLUSTER
 run <- curry(
   cluster.model, "cluster", data, true, BUGS.config,
   plot.call(cluster.plot, geom.louisiana, NULL, bounds.args)
 )
+table <- run(table, "1 cluster", K = 1)
 table <- run(table, "2 clusters", K = 2)
 table <- run(table, "3 clusters", K = 3)
 table <- run(table, "4 clusters", K = 4)
@@ -129,9 +134,10 @@ run <- curry(
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
   burn = 30000
 )
-table <- run(table, "random covariate", X = rand.covariate)
-table <- run(table, "single covariate", X = single.covariate)
-table <- run(table, "multiple covariate", X = multi.covariate)
+table <- run(table, "no covariate", X = NULL)
+table <- run(table, "income", X = var.income)
+table <- run(table, "education", X = var.education.gap)
+table <- run(table, "income and education", X = var.both)
 
 # SPATIAL
 run <- curry(
@@ -139,8 +145,8 @@ run <- curry(
   plot.call(spatial.plot, geom.louisiana, spatial.args, bounds.args),
   burn = 30000, BUGS = "WinBUGS"
 )
-table <- run(table, "random adjacency", ADJ = rand.adjacency)
-table <- run(table, "louisiana adjacency", ADJ = adjacency)
+table <- run(table, "no adjacency", ADJ = NULL)
+table <- run(table, "louisiana map", ADJ = adjacency)
 
 # LPHOM
 run <- curry(

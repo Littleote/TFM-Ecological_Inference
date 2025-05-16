@@ -7,7 +7,6 @@
 #   X[T, P]: covariates for each table
 #   d[R, C]: intercept prior
 #   g[P, R, C]: parameter prior
-#   l: precision related prior
 # Output:
 #   theta.2[T, C]: final estimated aggregated matrix as fractions
 #   delta[R, C]: intercept
@@ -34,8 +33,8 @@ model {
     for (r in 1:R) {
       for (c in 1:C) {
         beta.aux[t, r, c] <- exp(delta[r,c] + inprod(gamma[1:P, r, c], z[t, 1:P]))
+        beta[t, r, c] <- beta.aux[t, r, c] / sum(beta.aux[t, r, 1:C])
       }
-      beta[t, r, 1:C] ~ ddirch(lambda * beta.aux[t, r, 1:C] / sum(beta.aux[t, r, 1:C]))
     }
   }
   for (r in 1:R) {
@@ -54,4 +53,4 @@ model {
       }
     }
   }
-  lambda ~ dexp(l)}
+}

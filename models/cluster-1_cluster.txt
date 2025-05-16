@@ -1,0 +1,31 @@
+# Input:
+#   T: number of tables
+#   K (= 1): number of clusters
+#   R, C: initial and final aggregated categories
+#   Y.1[T, R], Y.2[T, C]: initial and final aggregated matrices
+#   f.1[T, R]: initial aggregated matrices as fractions
+#   N.1[T], N.2[T]: initial and final aggregated counts
+#   a[T, R]: initial aggregated prior (bY.cluster)
+#   v[-]: cluster proportion prior
+#   b[K, R, C]: transition matrix prior (bY.cluster)
+# Output:
+#   beta[T, R, C]: estimated transition matrix (bY.cluster)
+#   theta.1[T, R], theta.2[T, C]: initial and final estimated aggregated matrices as fractions
+#   zeta[T]: cluster assignment
+#   omega[-]: estimated cluster proportion
+
+model {
+  for (t in 1:T) {
+    Y.1[t, 1:R] ~ dmulti(theta.1[t, 1:R], N.1[t])
+    theta.1[t, 1:R] ~ ddirch(a[zeta[t], 1:R])
+    Y.2[t, ] ~ dmulti(theta.2[t, 1:C], N.2[t])
+    for (c in 1:C) {
+      theta.2[t, c] <- inprod(beta[zeta[t], 1:R, c], f.1[t, 1:R])
+    }
+    zeta[t] <- 1
+  }
+  for (r in 1:R) {
+    beta[1, r, 1:C] ~ ddirch(b[1, r, 1:C])
+  }
+  omega <- 1
+}

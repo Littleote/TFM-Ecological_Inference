@@ -26,7 +26,11 @@ numerical.model <- function(data, X, verbose = FALSE, maxit = 5000) {
 
   # Standardize to prevent numerical issues
   data$P <- length(X) / data$T
-  data$X <- array((X - mean(X)) / sd(X), c(data$T, data$P))
+  if (data$P > 0) {
+    data$X <- array((X - mean(X)) / sd(X), c(data$T, data$P))
+  } else {
+    data$X <- array(0, c(data$T, data$P))
+  }
 
   # Optimization parameters
   param <- c(
@@ -68,10 +72,14 @@ covariate.model <- function(data, X, BUGS = "JAGS", approx = NULL, iter = 2000, 
     approx <- numerical.model(data, X, ...)
   }
   C.minus.1 <- data$C - 1
-  # Standardize to prevent numerical issues
   extra <- list()
-  extra$P <- length(X) / data$T
-  extra$X <- array((X - mean(X)) / sd(X), c(data$T, extra$P))
+  no.args <- TRUE
+  if (!is.null(X)) {
+    no.args <- FALSE
+    extra$P <- length(X) / data$T
+    # Standardize to prevent numerical issues
+    extra$X <- array((X - mean(X)) / sd(X), c(data$T, extra$P))
+  }
   data <- c(
     data[c("T", "R", "C", "f.1", "Y.2", "N")],
     extra
@@ -83,28 +91,35 @@ covariate.model <- function(data, X, BUGS = "JAGS", approx = NULL, iter = 2000, 
   # Initial randomness
   S <- 100
   init.fn <- function() {
-    list(
-      beta = approx$beta,
-      delta.aux = approx$delta[, 1:C.minus.1, drop = FALSE],
-      gamma.aux = approx$gamma[, , 1:C.minus.1, drop = FALSE],
-      lambda = approx$lambda %||% 1
+    c(
+      list(
+        beta = approx$beta,
+        delta.aux = approx$delta[, 1:C.minus.1, drop = FALSE],
+        lambda = approx$lambda %||% 1
+      ),
+      (if (!no.args) list(gamma.aux = approx$gamma[, , 1:C.minus.1, drop = FALSE]) else NULL)
     )
   }
   sim <- runBUGS(
     BUGS, c(data, prior),
-    parameters = c("beta", "theta.2", "gamma", "delta", "lambda"),
-    model = model.file("covariate"), inits = init.fn,
+    parameters = c(
+      "beta", "theta.2", "delta", "lambda",
+      (if (!no.args) c("gamma") else NULL)
+    ),
+    model = model.file(glue("covariate{ifelse(no.args, '-no_args', '')}")), inits = init.fn,
     n.iter = iter * thin + burn, n.burnin = burn, n.thin = thin, n.chains = chain
   )
 
   ref <- sim$BUGSoutput$median
   arr <- sim$BUGSoutput$sims.array
   at <- index(arr)
-  return(list(
-    beta = get.array(apply(arr[, , at("beta")], 3, median), dim(ref$beta)),
-    bounds = hi.low(sim$BUGSoutput$sims.array, data$T, data$R, data$C),
-    delta = get.array(apply(arr[, , at("delta")], 3, median), dim(ref$delta)),
-    gamma = get.array(apply(arr[, , at("gamma")], 3, median), dim(ref$gamma)),
-    sim = sim
+  return(c(
+    list(
+      beta = get.array(apply(arr[, , at("beta")], 3, median), dim(ref$beta)),
+      bounds = hi.low(sim$BUGSoutput$sims.array, data$T, data$R, data$C),
+      delta = get.array(apply(arr[, , at("delta")], 3, median), dim(ref$delta)),
+      sim = sim
+    ),
+    (if (!no.args) list(gamma = get.array(apply(arr[, , at("gamma")], 3, median), dim(ref$gamma))) else NULL)
   ))
 }

@@ -1,24 +1,18 @@
 # Input:
 #   T: number of tables
-#   P: numer of covariate variables
+#   P (= 1): numer of covariate variables
 #   R, C: initial and final aggregated categories
 #   Y.1[T, R], Y.2[T, C]: initial and final aggregated matrices
 #   N.1[T], N.2[T]: initial and final aggregated counts
-#   X[T, P]: covariates for each table
 #   d[R, C]: intercept prior
-#   g[P, R, C]: parameter prior
 #   l: precision related prior
 # Output:
 #   theta.2[T, C]: final estimated aggregated matrix as fractions
 #   delta[R, C]: intercept
-#   gamma[P, R, C]: parameter coefficient
 #   beta[T, R, C]: estimated transition matrix
 
 data {
   for (t in 1:T) {
-    for (p in 1:P) {
-    	z[t, p] <- (X[t, p] - mean(X[1:T, p])) / sd(X[1:T, p])
-    }
     for (r in 1:R) {
       f.1[t, r] <- Y.1[t, r] / N.1[t]
     }
@@ -33,7 +27,7 @@ model {
     # Undo multinomial logit
     for (r in 1:R) {
       for (c in 1:C) {
-        beta.aux[t, r, c] <- exp(delta[r,c] + inprod(gamma[1:P, r, c], z[t, 1:P]))
+        beta.aux[t, r, c] <- exp(delta[r,c])
       }
       beta[t, r, 1:C] ~ ddirch(lambda * beta.aux[t, r, 1:C] / sum(beta.aux[t, r, 1:C]))
     }
@@ -41,17 +35,11 @@ model {
   for (r in 1:R) {
     # Prior in inital/original space
     delta.init[r, 1:C] ~ ddirch(d[r, 1:C])
-    for (p in 1:P) {
-    	gamma.init[p, r, 1:C] ~ ddirch(g[p, r, 1:C])
-    }
     # Apply multinomial logit
     for (c in 1:C) {
       delta.aux[r, c] <- log(delta.init[r, c])
       delta[r, c] <- delta.aux[r, c] - mean(delta.aux[r, 1:C])
-      for (p in 1:P) {
-      	gamma.aux[p, r, c] <- log(gamma.init[p, r, c])
-      	gamma[p, r, c] <- gamma.aux[p, r, c] - mean(gamma.aux[p, r, 1:C])
-      }
     }
   }
-  lambda ~ dexp(l)}
+  lambda ~ dexp(l)
+}

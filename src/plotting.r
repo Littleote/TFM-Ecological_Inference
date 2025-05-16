@@ -59,7 +59,14 @@ bounds.plot <- function(out, true, ylim = NULL, directory = NULL, ...) {
   dev.off()
 }
 
-bias.variance.tradeoff <- function(table, R, C) {
+bias.variance.tradeoff <- function(table, R, C, directory = NULL) {
+  # Override save functions if not saving
+  if (is.null(directory)) {
+    png <- function(...) {}
+    dev.off <- function(...) {}
+  } else {
+    if (!dir.exists(directory)) dir.create(directory, recursive = TRUE)
+  }
   groups <- factor(mapply(
     function(x) {
       strsplit(x, ", ")[[1]][1]
@@ -72,20 +79,30 @@ bias.variance.tradeoff <- function(table, R, C) {
       for (kind in c("Individual", "Region")) {
         bias.2 <- table[, glue("{kind} bias [{r}, {c}]")]^2
         variance <- table[, glue("{kind} deviation [{r}, {c}]")]^2
+        png(file = glue("{directory}/bias^2-variance for {r}, {c}.png"), width = WIDTH, height = HEIGHT)
         plot.tradeoff(
           bias.2, variance, groups,
           mirror = F,
           xlab = bquote(Bias^2 * .("[") * beta[.(r) ~ .(c)] * .("]")),
           ylab = bquote(Var * .("[") * beta[.(r) ~ .(c)] * .("]")),
-          main = bquote(.(kind) * .(" bias-variance for ") * beta[.(r) ~ .(c)])
+          main = bquote(.(kind) * .(" bias")^2 * .("-variance for ") * beta[.(r) ~ .(c)])
         )
+        dev.off()
       }
     }
   }
   par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
 }
 
-mean.sd.tradeoff <- function(table, R, C) {
+mean.sd.tradeoff <- function(table, R, C, directory = NULL) {
+  # Override save functions if not saving
+  if (is.null(directory)) {
+    png <- function(...) {}
+    dev.off <- function(...) {}
+  } else {
+    if (!dir.exists(directory)) dir.create(directory, recursive = TRUE)
+  }
+
   groups <- factor(mapply(
     function(x) {
       strsplit(x, ", ")[[1]][1]
@@ -98,6 +115,7 @@ mean.sd.tradeoff <- function(table, R, C) {
       for (kind in c("Individual", "Region")) {
         mean <- table[, glue("{kind} bias [{r}, {c}]")]
         sd <- table[, glue("{kind} deviation [{r}, {c}]")]
+        png(file = glue("{directory}/bias-deviation for {r}, {c}.png"), width = WIDTH, height = HEIGHT)
         plot.tradeoff(
           mean, sd, groups,
           mirror = T,
@@ -105,6 +123,7 @@ mean.sd.tradeoff <- function(table, R, C) {
           ylab = bquote(sigma * .("[") * beta[.(r) ~ .(c)] * .("]")),
           main = bquote(.(kind) * .(" bias-deviation for ") * beta[.(r) ~ .(c)])
         )
+        dev.off()
       }
     }
   }
@@ -160,7 +179,15 @@ plot.tradeoff <- function(x, y, groups, mirror, chain = TRUE, ...) {
   legend("topright", legend = levels(groups), fill = palette, border = NA)
 }
 
-plot.error <- function(table) {
+plot.error <- function(table, directory = NULL) {
+  # Override save functions if not saving
+  if (is.null(directory)) {
+    png <- function(...) {}
+    dev.off <- function(...) {}
+  } else {
+    if (!dir.exists(directory)) dir.create(directory, recursive = TRUE)
+  }
+
   groups <- factor(mapply(
     function(x) {
       strsplit(x, ", ")[[1]][1]
@@ -177,8 +204,10 @@ plot.error <- function(table) {
   palette <- rainbow(length(levels(groups)))
   par(mar = c(8, 2, 2, 0) + 0.1)
   for (err in c("EI", "EPW", "EQ")) {
+    png(file = glue("{directory}/error_{err}.png"), width = WIDTH, height = HEIGHT)
     barplot(table[, err], names.arg = config, col = palette[groups], las = 3, main = err)
     legend("topright", legend = levels(groups), fill = palette, border = NA)
+    dev.off()
   }
   par(mar = c(2, 2, 2, 0) + 0.1)
 }
@@ -313,6 +342,7 @@ spatial.plot <- function(out, t.seq = NULL, directory = NULL, map = NULL) {
   search <- index(var.names)
   T <- dim(out$beta)[1]
   t.seq <- t.seq %||% seq(T)
+  null.effect <- length(search("upsilon")) == 0
 
   # Generate plots
   for (t in t.seq) {
@@ -325,9 +355,11 @@ spatial.plot <- function(out, t.seq = NULL, directory = NULL, map = NULL) {
     png(file = glue("{directory}/nu_{t}.png"), width = WIDTH, height = HEIGHT)
     BUGS.trace(arr, var = "nu", search = search, subindex = c(-1, t), layout = c(2, 1))
     dev.off()
-    png(file = glue("{directory}/upsilon_{t}.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "upsilon", search = search, subindex = c(-1, t), layout = c(1, 1))
-    dev.off()
+    if (!null.effect) {
+      png(file = glue("{directory}/upsilon_{t}.png"), width = WIDTH, height = HEIGHT)
+      BUGS.trace(arr, var = "upsilon", search = search, subindex = c(-1, t), layout = c(1, 1))
+      dev.off()
+    }
   }
   png(file = glue("{directory}/delta.png"), width = WIDTH, height = HEIGHT)
   BUGS.trace(arr, var = "delta", search = search, layout = c(2, 1))
@@ -335,15 +367,19 @@ spatial.plot <- function(out, t.seq = NULL, directory = NULL, map = NULL) {
   png(file = glue("{directory}/tau(nu).png"), width = WIDTH, height = HEIGHT)
   BUGS.trace(arr, var = "tau.v", search = search, layout = c(2, 1))
   dev.off()
-  png(file = glue("{directory}/tau(upsilon).png"), width = WIDTH, height = HEIGHT)
-  BUGS.trace(arr, var = "tau.u", search = search, layout = c(1, 1))
-  dev.off()
+  if (!null.effect) {
+    png(file = glue("{directory}/tau(upsilon).png"), width = WIDTH, height = HEIGHT)
+    BUGS.trace(arr, var = "tau.u", search = search, layout = c(1, 1))
+    dev.off()
+  }
 
   if (!is.null(map)) {
-    png(file = glue("{directory}/upsilon_map.png"), width = WIDTH, height = HEIGHT)
-    upsilon <- apply(arr[, , search("upsilon")], 3, median)
-    map.plot(map, upsilon, "upsilon")
-    dev.off()
+    if (!null.effect) {
+      png(file = glue("{directory}/upsilon_map.png"), width = WIDTH, height = HEIGHT)
+      upsilon <- apply(arr[, , search("upsilon")], 3, median)
+      map.plot(map, upsilon, "upsilon")
+      dev.off()
+    }
     for (i in 1:2) {
       png(file = glue("{directory}/nu[{i}]_map.png"), width = WIDTH, height = HEIGHT)
       nu <- apply(arr[, , search("nu", i)], 3, median)
