@@ -20,7 +20,7 @@ data {
 }
 model {
   for (t in 1:T) {
-    Y.2[t,] ~ dmulti(theta.2[t, 1:C], N.2[t])
+    Y.2[t,1:C] ~ dmulti(theta.2[t, 1:C], N.2[t])
     for (c in 1:C) {
       theta.2[t, c] <- inprod(beta[t, 1:R, c], f.1[t, 1:R])
     }

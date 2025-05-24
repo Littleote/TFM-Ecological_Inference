@@ -15,7 +15,8 @@ logit.covariate.model <- function(data, X, BUGS = "JAGS", rand.effects = TRUE, i
   )
   prior <- c(
     list(d = array(1, c(data$R, data$C))),
-    (if (rand.effects) list(l = 1 + ifelse(no.args, 0, data$P)) else NULL),
+    (if (rand.effects & no.args) list(l = 1) else NULL),
+    (if (rand.effects & !no.args) list(l = 1 + data$P) else NULL),
     (if (!no.args) list(g = array(1, c(data$P, data$R, data$C))) else NULL)
   )
 

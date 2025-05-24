@@ -1,0 +1,34 @@
+\begin{table}[!ht]
+ 	\centering
+ 	\begin{tblr}{>{\raggedright\arraybackslash}m{80pt}>{\raggedright\arraybackslash}m{60pt} r r r }
+ 		\hline
+ 		Method & Parameters  & $Y_{1, 1}$ & $Y_{2, 1}$ & Execution time \\ \hline
+		\hline
+		 \SetCell[r=4]{}logit covariate &  no covariate & $-0.005\pm0.007$ & $0.014\pm0.014$ & 81.92s \\
+		 ~ &  income & $-0.003\pm0.008$ & $0.008\pm0.019$ & 101.06s \\
+		 ~ &  education & $-0.001\pm0.006$ & $0.005\pm0.014$ & 96.17s \\
+		 ~ &  income and education & $-0.005\pm0.009$ & $0.014\pm0.016$ & 114.16s \\
+		\hline
+		 \SetCell[r=4]{}logit covariate without random effects &  no covariate & $-0.018\pm0.202$ & $0.022\pm0.015$ & 5.96s \\
+		 ~ &  income & $-0.013\pm0.192$ & $0.018\pm0.038$ & 9.08s \\
+		 ~ &  education & $-0.016\pm0.190$ & $0.022\pm0.015$ & 11.38s \\
+		 ~ &  income and education & $-0.012\pm0.180$ & $0.018\pm0.035$ & 11.12s \\
+		\hline
+		 \SetCell[r=4]{}cluster &  1 cluster & $-0.018\pm0.202$ & $0.022\pm0.015$ & 14.55s \\
+		 ~ &  2 clusters & $-0.015\pm0.132$ & $0.022\pm0.015$ & 30.87s \\
+		 ~ &  3 clusters & $-0.012\pm0.076$ & $0.022\pm0.016$ & 40.95s \\
+		 ~ &  4 clusters & $0.002\pm0.085$ & $-0.005\pm0.080$ & 51.60s \\
+		\hline
+		 \SetCell[r=4]{}covariate &  no covariate & $-0.010\pm0.011$ & $0.022\pm0.015$ & 228.20s \\
+		 ~ &  income & $-0.010\pm0.011$ & $0.022\pm0.015$ & 222.25s \\
+		 ~ &  education & $-0.010\pm0.011$ & $0.022\pm0.015$ & 251.05s \\
+		 ~ &  income and education & $-0.010\pm0.011$ & $0.022\pm0.015$ & 343.06s \\
+		\hline
+		 \SetCell[r=2]{}spatial &  no adjacency & $-0.007\pm0.008$ & $0.017\pm0.015$ & 172.24s \\
+		 ~ &  louisiana map & $-0.009\pm0.009$ & $0.020\pm0.015$ & 239.45s \\
+		\hline
+		 \SetCell[r=1]{}lphom &  nslphom & $-0.010\pm0.011$ & $0.021\pm0.016$ & 0.64s \\
+		\hline
+		 \SetCell[r=1]{}ecolRxC &  ecolRxC & $0.009\pm0.027$ & $-0.019\pm0.045$ & 0.03s \\
+	\end{tblr}
+ \end{table}

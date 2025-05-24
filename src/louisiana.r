@@ -6,12 +6,10 @@ library(spdep)
 source("plotting.r")
 source("utilities.r")
 
-geom <- st_read("../data/US-counties/tl_2020_us_county.shp")
-
+DATA <- "Louisiana"
 df <- read.csv("../data/Louisiana-2020_presidential_election.csv", skip = 1)
+geom <- st_read("../data/US-counties/tl_2020_us_county.shp")
 df.income <- read.csv("../data/Louisiana-2020_income_adjusted.csv")
-df.age.gender <- read.csv("../data/Louisiana-2020_age-gender.csv")
-df.employment <- read.csv("../data/Louisiana-2020_employment.csv")
 df.education <- read.csv("../data/Louisiana-2020_education.csv")
 
 true <- list()
@@ -39,7 +37,6 @@ if (all(data$N.1 == data$N.2)) {
 data$f.1 <- t(apply(data$Y.1, 1, norm.1))
 data$f.2 <- t(apply(data$Y.2, 1, norm.1))
 
-rand.covariate <- rnorm(data$T)
 parse <- function(df, row, stride, offset = 2) {
   as.numeric(gsub(",", "", df[row, stride * 1:data$T - stride + offset]))
 }
@@ -48,24 +45,9 @@ var.education.white <- parse(df.education, 31, 4) / parse(df.education, 30, 4)
 var.education.black <- parse(df.education, 37, 4) / parse(df.education, 36, 4)
 var.education.gap <- var.education.white - var.education.black
 var.both <- whitening::whiten(cbind(var.income, var.education.gap))
-# var.age <- parse(df.age.gender, 19, 4)
-# var.gender <- parse(df.age.gender, 93, 4) / parse(df.age.gender, 92, 4)
-# var.employment.white.collar <- (parse(df.employment, 2, 12) + parse(df.employment, 4, 12)) / parse(df.employment, 1, 12)
-# single.covariate <- var.income
-# multi.covariate <- cbind(
-#   var.income,
-#   var.age,
-#   var.gender,
-#   var.education.white,
-#   var.education.black,
-#   var.employment.white.collar
-# )
-# multi.covariate <- whitening::whiten(multi.covariate)
 geom.louisiana <- geom[geom$STATEFP == 22, ]
 parish.idx <- order(geom.louisiana$NAME)
-# reorder <- sample(data$T)
 adjacency <- 1 == nb2mat(poly2nb(geom.louisiana), style = "B")[parish.idx, parish.idx]
-# rand.adjacency <- adjacency[reorder, reorder]
 bounds.args <- list(ylim = c(0, 1))
 spatial.args <- list(map = geom.louisiana)
 
@@ -100,7 +82,7 @@ table <- NULL
 run <- curry(
   logit.covariate.model, "logit covariate", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 30000, rand.effects = TRUE
+  burn = 50000, thin = 20, rand.effects = TRUE
 )
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
@@ -111,7 +93,7 @@ table <- run(table, "income and education", X = var.both)
 run <- curry(
   logit.covariate.model, "logit covariate without random effects", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 50000, rand.effects = FALSE
+  burn = 10000, rand.effects = FALSE
 )
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
@@ -121,7 +103,8 @@ table <- run(table, "income and education", X = var.both)
 # CLUSTER
 run <- curry(
   cluster.model, "cluster", data, true, BUGS.config,
-  plot.call(cluster.plot, geom.louisiana, NULL, bounds.args)
+  plot.call(cluster.plot, geom.louisiana, NULL, bounds.args),
+  burn = 30000
 )
 table <- run(table, "1 cluster", K = 1)
 table <- run(table, "2 clusters", K = 2)
@@ -132,7 +115,7 @@ table <- run(table, "4 clusters", K = 4)
 run <- curry(
   covariate.model, "covariate", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 30000
+  burn = 70000, thin = 20
 )
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
@@ -143,7 +126,7 @@ table <- run(table, "income and education", X = var.both)
 run <- curry(
   spatial.model, "spatial", data, true, BUGS.config,
   plot.call(spatial.plot, geom.louisiana, spatial.args, bounds.args),
-  burn = 30000, BUGS = "WinBUGS"
+  burn = 30000, BUGS = "WinBUGS", thin = 20
 )
 table <- run(table, "no adjacency", ADJ = NULL)
 table <- run(table, "louisiana map", ADJ = adjacency)
@@ -153,10 +136,7 @@ run <- curry(
   lphom.model, "lphom", data, true, NULL,
   plot.call(NULL, geom.louisiana, NULL, bounds.args)
 )
-table <- run(table, "lclphom", lphom = lphom::lclphom)
 table <- run(table, "nslphom", lphom = lphom::nslphom)
-table <- run(table, "rslphom", lphom = lphom::rslphom)
-table <- run(table, "tslphom", lphom = lphom::tslphom)
 
 # ECOL RxC
 run <- curry(
@@ -168,3 +148,7 @@ table <- run(table, "ecolRxC", ecol = ecolRxC::ecolRxC)
 
 write.csv(table, file = "louisiana_stats.csv")
 save.image(file = "louisiana.RData")
+
+plot.error(table, glue("../plots/{DATA}/error/full"))
+mean.sd.tradeoff(table, 2, 1, glue("../plots/{DATA}/error/full"))
+bias.variance.tradeoff(table, 2, 1, glue("../plots/{DATA}/error/full"))

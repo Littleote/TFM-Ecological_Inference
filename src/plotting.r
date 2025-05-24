@@ -4,11 +4,12 @@ WIDTH <- 900
 HEIGHT <- 600
 RED <- "#ff7f7f"
 ORANGE <- "#ffbf7f"
+DATA <- "NONE"
 
 
 plot.call <- function(model.plot, map, model.args, bounds.args) {
   function(name, out, true) {
-    directory <- paste(c("../plots", strsplit(name, ", ")[[1]]), collapse = "/")
+    directory <- paste(c("../plots", DATA, strsplit(name, ", ")[[1]]), collapse = "/")
     bounds.args <- bounds.args %||% list()
     bounds.args$directory <- directory
     bounds.args$out <- out
@@ -22,7 +23,9 @@ plot.call <- function(model.plot, map, model.args, bounds.args) {
       do.call(model.plot, model.args)
     }
 
-    beta.map.plot(out, true, map, directory)
+    if(!is.null(map)) {
+      beta.map.plot(out, true, map, directory)
+    }
   }
 }
 
@@ -51,8 +54,8 @@ bounds.plot <- function(out, true, ylim = NULL, directory = NULL, ...) {
       for (t in 1:T) {
         lines(c(t, t), out$bounds[, t, r, c], col = "blue", lwd = 3, lend = 3)
       }
-      points(out$beta[, r, c], col = "black", pch = 18)
-      points(true$beta[, r, c], col = ifelse(match, "green", "red"), pch = 20)
+      points(out$beta[, r, c], col = "black", pch = 1, cex=2, lwd=2)
+      points(true$beta[, r, c], col = ifelse(match, "green", "red"), pch = 20, cex = 2)
     }
   }
   par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
@@ -202,14 +205,14 @@ plot.error <- function(table, directory = NULL) {
   )
 
   palette <- rainbow(length(levels(groups)))
-  par(mar = c(8, 2, 2, 0) + 0.1)
   for (err in c("EI", "EPW", "EQ")) {
     png(file = glue("{directory}/error_{err}.png"), width = WIDTH, height = HEIGHT)
-    barplot(table[, err], names.arg = config, col = palette[groups], las = 3, main = err)
+    par(mar = c(2, 10, 2, 0) + 0.1)
+    barplot(table[, err], names.arg = config, col = palette[groups], las = 2, main = err, horiz = TRUE)
     legend("topright", legend = levels(groups), fill = palette, border = NA)
     dev.off()
   }
-  par(mar = c(2, 2, 2, 0) + 0.1)
+  par(mar = c(5, 4, 4, 2) + 0.1)
 }
 
 BUGS.trace <- function(arr, var, search = NULL, subindex = NULL, layout = NULL, ylim = NULL, ...) {
@@ -262,24 +265,32 @@ covariate.plot <- function(out, t.seq = NULL, directory = NULL) {
   # Generate plots
   for (t in t.seq) {
     png(file = glue("{directory}/beta_{t}.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "beta", search = search, subindex = c(t))
+    BUGS.trace(arr, var = "beta", search = search, subindex = c(t), layout = c(R, C))
     dev.off()
     png(file = glue("{directory}/theta(2)_{t}.png"), width = WIDTH, height = HEIGHT)
     BUGS.trace(arr, var = "theta.2", search = search, subindex = c(t), layout = c(C, 1))
     dev.off()
   }
   png(file = glue("{directory}/delta.png"), width = WIDTH, height = HEIGHT)
-  BUGS.trace(arr, var = "delta", search = search)
+  BUGS.trace(arr, var = "delta", search = search, layout = c(R, C))
   dev.off()
 
   for (p in p.seq) {
     png(file = glue("{directory}/gamma_{p}.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "gamma", search = search, subindex = c(p))
+    BUGS.trace(arr, var = "gamma", search = search, subindex = c(p), layout = c(R, C))
     dev.off()
   }
   if (!is.null(search("lambda"))) {
     png(file = glue("{directory}/lambda.png"), width = WIDTH, height = HEIGHT)
     BUGS.trace(arr, var = "lambda", search = search)
+    dev.off()
+  }
+  if (!is.null(search("rho"))) {
+    png(file = glue("{directory}/log_rho.png"), width = WIDTH, height = HEIGHT)
+    BUGS.trace(arr, var = "rho", search = search, log = "y")
+    dev.off()
+    png(file = glue("{directory}/rho.png"), width = WIDTH, height = HEIGHT)
+    BUGS.trace(arr, var = "rho", search = search)
     dev.off()
   }
 }
@@ -307,7 +318,7 @@ cluster.plot <- function(out, t.seq = NULL, directory = NULL) {
   # Generate plots
   for (k in k.seq) {
     png(file = glue("{directory}/beta_{k}.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "beta", search = search, subindex = c(k))
+    BUGS.trace(arr, var = "beta", search = search, subindex = c(k), layout = c(R, C))
     dev.off()
   }
   png(file = glue("{directory}/omega.png"), width = WIDTH, height = HEIGHT)
@@ -347,7 +358,7 @@ spatial.plot <- function(out, t.seq = NULL, directory = NULL, map = NULL) {
   # Generate plots
   for (t in t.seq) {
     png(file = glue("{directory}/beta_{t}.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "beta", search = search, subindex = c(t))
+    BUGS.trace(arr, var = "beta", search = search, subindex = c(t), layout = c(R, C))
     dev.off()
     png(file = glue("{directory}/theta(2)_{t}.png"), width = WIDTH, height = HEIGHT)
     BUGS.trace(arr, var = "theta.2", search = search, subindex = c(t), layout = c(2, 1))

@@ -1,5 +1,21 @@
 library(tidyr)
 
+if(!file.exists("path.RData")){
+  # JAGS.path <- rstudioapi::selectDirectory(
+  #   caption = "Select JAGS directory",
+  #   label = "Select",
+  #   path = rstudioapi::getActiveProject()
+  # )
+  WinBUGS.path <- rstudioapi::selectDirectory(
+    caption = "Select WinBUGS Directory",
+    label = "Select",
+    path = rstudioapi::getActiveProject()
+  )
+  save(file = "path.RData", list = c("JAGS.path", "WinBUGS.path"))
+} else {
+  load("path.RData")
+}
+
 norm.1 <- function(v) {
   v / sum(v)
 }
@@ -64,14 +80,14 @@ runBUGS <- function(BUGS, data, inits = NULL, parameters, model, n.chains, purge
     library(R2jags)
     sim <- R2jags::jags.parallel(
       data, inits, parameters, model,
-      n.chains = total.chains, ...
+      n.chains = total.chains, ...,
     )
   } else if (BUGS == "WinBUGS") {
     library(R2WinBUGS)
     BUGSoutput <- R2WinBUGS::bugs(
       data, inits, parameters, model,
       n.chains = total.chains, ...,
-      bugs.directory = "D:/Archivos de programa/UPC-DS/WinBugs14"
+      bugs.directory = WinBUGS.path
     )
     sim <- list(
       BUGSoutput = BUGSoutput,
@@ -181,7 +197,7 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
 
   if (is.null(table)) {
     table <- data.frame(as.list(elems), row.names = name)
-    naming <- paste0("[", 1:data$R, ", ", rep(1:C, each = data$R), "]")
+    naming <- paste0("[", 1:data$R, ", ", rep(1:data$C, each = data$R), "]")
     dimnames(table)[[2]] <- c(
       paste(
         rep(
