@@ -11,7 +11,7 @@ if(!file.exists("path.RData")){
     label = "Select",
     path = rstudioapi::getActiveProject()
   )
-  save(file = "path.RData", list = c("JAGS.path", "WinBUGS.path"))
+  save(file = "path.RData", list = c("WinBUGS.path")) # "JAGS.path"
 } else {
   load("path.RData")
 }
@@ -160,7 +160,7 @@ bias.deviation <- function(out, true, data) {
   ))
 }
 
-as.global(X) {
+as.global <- function(X) {
   apply(X, 2:3, sum)
 }
 
@@ -209,7 +209,7 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
   }
 
   bias.sd <- bias.deviation(out, true, data)
-  error <- global.error(out, true)
+  error <- get.error(out, true)
   median.bound.size <- apply(out$bounds[2, , , ] - out$bounds[1, , , ], c(2, 3), median)
   in.bounds <- apply(out$bounds[1, , , ] < true$beta & true$beta < out$bounds[2, , , ], c(2, 3), mean)
 
@@ -222,7 +222,7 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
     in.bounds,
     execution.time[3],
     unlist(error$local),
-    unlist(error$global),
+    unlist(error$global)
   )
 
 
@@ -245,7 +245,7 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
         naming
       ),
       "Execution time",
-      paste(c("local", "global"), rep(c("MAE", "MSE"), each=2))
+      paste(rep(c("local", "global"), each=2), c("MAE", "MSE"))
     )
   } else {
     table[name, 1:length(elems)] <- elems

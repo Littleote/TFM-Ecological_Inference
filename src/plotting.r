@@ -205,7 +205,7 @@ plot.error <- function(table, directory = NULL) {
   )
 
   palette <- rainbow(length(levels(groups)))
-  for (err in c("EI", "EPW", "EQ")) {
+  for (err in c("local MAE", "local MSE", "global MAE", "global MSE")) {
     png(file = glue("{directory}/error_{err}.png"), width = WIDTH, height = HEIGHT)
     par(mar = c(2, 10, 2, 0) + 0.1)
     barplot(table[, err], names.arg = config, col = palette[groups], las = 2, main = err, horiz = TRUE)
