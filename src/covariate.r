@@ -46,7 +46,6 @@ numerical.model <- function(data, X, verbose = FALSE, maxit = 5000) {
   ))
   if (best$convergence != 0) {
     print(paste(best$convergence, best$message))
-    stop()
   }
 
   # Reconstruct matrices

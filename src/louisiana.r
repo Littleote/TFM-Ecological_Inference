@@ -57,32 +57,13 @@ source("spatial.r")
 source("covariate.r")
 source("wrapper.r")
 
-curry <- function(fun, fun.name, data, true, config = NULL, plotting = NULL, ...) {
-  common.params <- list(...)
-  return(function(table, param.name, ...) {
-    do.call(
-      test.model,
-      c(list(
-        model = fun,
-        name = paste(fun.name, param.name, sep = ", "),
-        table = table,
-        data = data,
-        true = true,
-        config = config,
-        plotting = plotting,
-        ...
-      ), common.params)
-    )
-  })
-}
-
 table <- NULL
 
 # LOGIT COVARIATE
 run <- curry(
   logit.covariate.model, "logit covariate", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 50000, thin = 20, rand.effects = TRUE
+  burn = 90000, thin = 20, rand.effects = TRUE
 )
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)

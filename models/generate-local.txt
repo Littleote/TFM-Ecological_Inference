@@ -1,0 +1,35 @@
+data {
+    for (t in 1:T) {
+        z[t] <- (X[t] - mean(X[1:T])) / sd(X[1:T])
+        N[t] <- sum(Y.1[t, 1:R])
+        for (r in 1:R) {
+            f.1[t, r] <- Y.1[t, r] / sum(Y.1[t, 1:R])
+        }
+
+    }
+}
+model {
+    for (t in 1:T) {
+        Y.2[t,1:C] ~ dmulti(theta.2[t, 1:C], N[t])
+        for (c in 1:C) {
+            theta.2[t, c] <- inprod(beta[t, 1:R, c], f.1[t, 1:R])
+        }
+        for (r in 1:R) {
+            beta[t, r, 1:C] ~ ddirch(lambda.beta * global.beta[r, 1:C])
+            for (c in 1:C) {
+                norm.beta[t, r, c] <- (beta[t, r, c] - mean(beta[1:T, r, c])) / (sd(beta[1:T, r, c]) + 1e-3)
+            }
+        }
+    }
+    for (r in 1:R) {
+        for (c in 1:C) {
+            corr[r, c] <- abs(inprod(norm.beta[1:T, r, c], z[1:T]) / T)
+        }
+    }
+    mean.corr <- mean(corr)
+    # Fix explainability
+    explainability ~ dbeta(lambda.corr * mean.corr, lambda.corr * (1 - mean.corr))
+    
+    lambda.beta <- 1 / (noise + 1e-3) - 1 + 1e-3
+    lambda.corr <- force
+}

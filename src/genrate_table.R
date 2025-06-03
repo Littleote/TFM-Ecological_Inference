@@ -2,14 +2,19 @@ wd <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(wd)
 library(glue)
 
-file <- "louisiana"
 R <- 2
-table <- read.csv(file = glue("{file}_stats.csv"))
+table <- read.csv(file = glue("out/louisiana_stats.csv"))
 
-f <- glue("{file}_bias.tex")
-Y <- ""
+if (!dir.exists("../latex/taules")) {
+  dir.create("../latex/taules", recursive = TRUE)
+}
+
+# =================================================================================
+
+file.name <- "../latex/taules/louisiana_bias_time.tex"
+Y.index <- ""
 for(r in 1:R) {
-  Y <- sprintf("%s & $Y_{%d, 1}$", Y, r)
+  Y.index <- sprintf("%s & $Y_{%d, 1}$", Y.index, r)
 }
 cat(
   "\\begin{table}[!ht]\n",
@@ -19,9 +24,9 @@ cat(
   "}\n",
   "\t\t\\hline\n",
   "\t\tMethod & Parameters",
-  Y,
+  Y.index,
   "& Execution time \\\\ \\hline\n",
-  file = f
+  file = file.name
 )
 last.item <- ""
 for(i in 1:nrow(table)) {
@@ -33,7 +38,7 @@ for(i in 1:nrow(table)) {
     name <- glue("\\SetCell[r={count}]{{}}{last.item}")
     cat(
       "\t\t\\hline\n",
-      file = f, append = TRUE
+      file = file.name, append = TRUE
     )
   }
   b.err <- ""
@@ -47,23 +52,24 @@ for(i in 1:nrow(table)) {
     "\t\t",
     glue("{name} & {index[2]}{b.err} & {time}"),
     "\\\\\n",
-    file = f, append = TRUE
+    file = file.name, append = TRUE
   )
 }
 
 cat(
   "\t\\end{tblr}\n",
   "\\end{table}",
-  file = f, append = TRUE
+  file = file.name, append = TRUE
 )
 
 # =================================================================================
-f <- glue("{file}_bounds.tex")
-Y <- ""
-Y.2 <- ""
+
+file.name <- "../latex/taules/louisiana_bounds_error.tex"
+Y.index <- ""
+Y.bound <- ""
 for(r in 1:R) {
-  Y <- sprintf("%s & \\SetCell[c=2]{}{$Y_{%d, 1}$ bounds} & ", Y, r)
-  Y.2 <- sprintf("%s & Size & Accuracy", Y.2)
+  Y.index <- sprintf("%s & \\SetCell[c=2]{}{$Y_{%d, 1}$ bounds} & ", Y.index, r)
+  Y.bound <- sprintf("%s & Size & Accuracy", Y.bound)
 }
 cat(
   "\\begin{table}[!ht]\n",
@@ -73,12 +79,12 @@ cat(
   "}\n",
   "\t\t\\hline\n",
   "\t\t\\SetCell[r=2]{}{Method} & \\SetCell[r=2]{}{Parameters}",
-  Y,
-  "& \\SetCell[c=2]{}{Error} \\\\ \\hline\n",
+  Y.index,
+  "& \\SetCell[c=2]{}{Local Error} & \\SetCell[c=2]{}{Global Error} \\\\ \\hline\n",
   "\t\t~&~",
-  Y.2,
-  "& EI & EQ \\\\ \\hline\n",
-  file = f
+  Y.bound,
+  "& EI & EQ & EI & EQ \\\\ \\hline\n",
+  file = file.name
 )
 last.item <- ""
 for(i in 1:nrow(table)) {
@@ -90,7 +96,7 @@ for(i in 1:nrow(table)) {
     name <- glue("\\SetCell[r={count}]{{}}{last.item}")
     cat(
       "\t\t\\hline\n",
-      file = f, append = TRUE
+      file = file.name, append = TRUE
     )
   }
   bounds <- ""
@@ -99,18 +105,20 @@ for(i in 1:nrow(table)) {
     percent <- 100 * table[i, glue("True.in.bounds..{r}..1.")]
     bounds <- sprintf("%s & $%.3f$ & $%.0f\\%%$", bounds, size, percent)
   }
-  EI <- sprintf("%.3f", table[i, "EI"])
-  EQ <- sprintf("%.3f", table[i, "EQ"])
+  local.EI <- sprintf("%.3f", table[i, "local.EI"])
+  local.EQ <- sprintf("%.3f", table[i, "local.EQ"])
+  global.EI <- sprintf("%.3f", table[i, "global.EI"])
+  global.EQ <- sprintf("%.3f", table[i, "global.EQ"])
   cat(
     "\t\t",
-    glue("{name} & {index[2]}{bounds} & {EI} & {EQ}"),
+    glue("{name} & {index[2]}{bounds} & {local.EI} & {local.EQ} & {global.EI} & {global.EQ}"),
     "\\\\\n",
-    file = f, append = TRUE
+    file = file.name, append = TRUE
   )
 }
 
 cat(
   "\t\\end{tblr}\n",
   "\\end{table}",
-  file = f, append = TRUE
+  file = file.name, append = TRUE
 )

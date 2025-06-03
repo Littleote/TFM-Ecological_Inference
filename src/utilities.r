@@ -160,12 +160,44 @@ bias.deviation <- function(out, true, data) {
   ))
 }
 
-global.error <- function(out, true) {
+as.global(X) {
+  apply(X, 2:3, sum)
+}
+
+get.error <- function(out, true) {
+  og.count <- as.global(out$count)
+  tg.count <- as.global(true$count)
   list(
-    EI = 100 / 2 * sum(abs(out$count - true$count)) / sum(true$count),
-    EPW = 100 * sum(true$count * abs(out$beta - true$beta)) / sum(true$count),
-    EQ = 100 * sqrt(sum((out$count - true$count)^2)) / sum(true$count)
+    local = list(
+      EI = sum(abs(out$count - true$count)) / sum(true$count),
+      # EPW = sum(true$count * abs(out$beta - true$beta)) / sum(true$count),
+      EQ = sqrt(sum((out$count - true$count)^2)) / sum(true$count)
+    ),
+    global = list(
+      EI = sum(abs(og.count - tg.count)) / sum(tg.count),
+      # EPW = sum(tg.count * abs(og.beta - tg.beta)) / sum(tg.count),
+      EQ = sqrt(sum((og.count - tg.count)^2)) / sum(tg.count)
+    )
   )
+}
+
+curry <- function(fun, fun.name, data, true, config = NULL, plotting = NULL, ...) {
+  common.params <- list(...)
+  return(function(table, param.name, ...) {
+    do.call(
+      test.model,
+      c(list(
+        model = fun,
+        name = paste(fun.name, param.name, sep = ", "),
+        table = table,
+        data = data,
+        true = true,
+        config = config,
+        plotting = plotting,
+        ...
+      ), common.params)
+    )
+  })
 }
 
 test.model <- function(model, name, table = NULL, data, true, ..., config = NULL, plotting = NULL, verbose = FALSE) {
@@ -189,9 +221,8 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
     median.bound.size,
     in.bounds,
     execution.time[3],
-    error$EI,
-    error$EPW,
-    error$EQ
+    unlist(error$local),
+    unlist(error$global),
   )
 
 
@@ -214,9 +245,7 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
         naming
       ),
       "Execution time",
-      "EI",
-      "EPW",
-      "EQ"
+      paste(c("local", "global"), rep(c("MAE", "MSE"), each=2))
     )
   } else {
     table[name, 1:length(elems)] <- elems

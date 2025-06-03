@@ -285,14 +285,6 @@ covariate.plot <- function(out, t.seq = NULL, directory = NULL) {
     BUGS.trace(arr, var = "lambda", search = search)
     dev.off()
   }
-  if (!is.null(search("rho"))) {
-    png(file = glue("{directory}/log_rho.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "rho", search = search, log = "y")
-    dev.off()
-    png(file = glue("{directory}/rho.png"), width = WIDTH, height = HEIGHT)
-    BUGS.trace(arr, var = "rho", search = search)
-    dev.off()
-  }
 }
 
 cluster.plot <- function(out, t.seq = NULL, directory = NULL) {
