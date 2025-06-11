@@ -23,13 +23,18 @@ model {
     }
     for (r in 1:R) {
         for (c in 1:C) {
-            corr[r, c] <- abs(inprod(norm.beta[1:T, r, c], z[1:T]) / T)
+            region.corr[r, c] <- abs(inprod(norm.beta[1:T, r, c], z[1:T]) / T)
+            mean.beta[r, c] <- mean(beta[1:T, r, c])
+            var.beta[r, c] <- sd(beta[1:T, r, c])^2
+            region.noise[r, c] <- var.beta[r, c] / (mean.beta[r, c] * (1 - mean.beta[r, c]) + 1e-3)
         }
     }
-    mean.corr <- mean(corr)
+    mean.corr <- mean(region.corr)
+    mean.noise <- mean(region.noise)
     # Fix explainability
-    explainability ~ dbeta(lambda.corr * mean.corr, lambda.corr * (1 - mean.corr))
+    explainability ~ dbeta(force.exp * mean.corr, force.exp * (1 - mean.corr))
+    # Fix noise
+    noise ~ dbeta(force.noise * mean.noise, force.noise * (1 - mean.noise))
     
-    lambda.beta <- 1 / (noise + 1e-3) - 1 + 1e-3
-    lambda.corr <- force
+    lambda.beta <- 1 / (noise.2 + 1e-3) - 1 + 1e-3
 }

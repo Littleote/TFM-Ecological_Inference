@@ -222,7 +222,8 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
     in.bounds,
     execution.time[3],
     unlist(error$local),
-    unlist(error$global)
+    unlist(error$global),
+    ifelse(is.null(out$sim), "False", "True")
   )
 
 
@@ -245,7 +246,8 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
         naming
       ),
       "Execution time",
-      paste(rep(c("local", "global"), each=2), c("MAE", "MSE"))
+      paste(rep(c("local", "global"), each=2), c("MAE", "MSE")),
+      "MCMC"
     )
   } else {
     table[name, 1:length(elems)] <- elems

@@ -84,6 +84,8 @@ covariate.model <- function(data, X, BUGS = "JAGS", approx = NULL, iter = 2000, 
     extra
   )
   prior <- list(
+    # b.low = rep(1e-6, data$C),
+    # b.high = rep(1 - 1e-6, data$C),
     l = 1
   )
 
@@ -99,26 +101,40 @@ covariate.model <- function(data, X, BUGS = "JAGS", approx = NULL, iter = 2000, 
       (if (!no.args) list(gamma.aux = approx$gamma[, , 1:C.minus.1, drop = FALSE]) else NULL)
     )
   }
-  sim <- runBUGS(
-    BUGS, c(data, prior),
-    parameters = c(
-      "beta", "theta.2", "delta", "lambda",
-      (if (!no.args) c("gamma") else NULL)
-    ),
-    model = model.file(glue("covariate{ifelse(no.args, '-no_args', '')}")), inits = init.fn,
-    n.iter = iter * thin + burn, n.burnin = burn, n.thin = thin, n.chains = chain
+  ERROR <- tryCatch({sim <- runBUGS(
+      BUGS, c(data, prior),
+      parameters = c(
+        "beta", "theta.2", "delta", "lambda",
+        (if (!no.args) c("gamma") else NULL)
+      ),
+      model = model.file(glue("covariate{ifelse(no.args, '-no_args', '')}")), inits = init.fn,
+      n.iter = iter * thin + burn, n.burnin = burn, n.thin = thin, n.chains = chain
+    ); FALSE},
+    error = function(...) { TRUE }
   )
-
-  ref <- sim$BUGSoutput$median
-  arr <- sim$BUGSoutput$sims.array
-  at <- index(arr)
-  return(c(
-    list(
-      beta = get.array(apply(arr[, , at("beta")], 3, median), dim(ref$beta)),
-      bounds = hi.low(sim$BUGSoutput$sims.array, data$T, data$R, data$C),
-      delta = get.array(apply(arr[, , at("delta")], 3, median), dim(ref$delta)),
-      sim = sim
-    ),
-    (if (!no.args) list(gamma = get.array(apply(arr[, , at("gamma")], 3, median), dim(ref$gamma))) else NULL)
-  ))
+  
+  if(ERROR) {
+    return(c(
+      list(
+        beta = approx$beta,
+        bounds = array(0:1, c(2, dim(true$beta))),
+        delta = approx$delta,
+        sim = NULL
+      ),
+      (if (!no.args) list(gamma = approx$gamma) else NULL)
+    ))
+  } else {
+    ref <- sim$BUGSoutput$median
+    arr <- sim$BUGSoutput$sims.array
+    at <- index(arr)
+    return(c(
+      list(
+        beta = get.array(apply(arr[, , at("beta")], 3, median), dim(ref$beta)),
+        bounds = hi.low(sim$BUGSoutput$sims.array, data$T, data$R, data$C),
+        delta = get.array(apply(arr[, , at("delta")], 3, median), dim(ref$delta)),
+        sim = sim
+      ),
+      (if (!no.args) list(gamma = get.array(apply(arr[, , at("gamma")], 3, median), dim(ref$gamma))) else NULL)
+    ))
+  }
 }

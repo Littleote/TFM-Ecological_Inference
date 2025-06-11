@@ -10,13 +10,15 @@ DATA <- "NONE"
 plot.call <- function(model.plot, map, model.args, bounds.args) {
   function(name, out, true) {
     directory <- paste(c("../plots", DATA, strsplit(name, ", ")[[1]]), collapse = "/")
-    bounds.args <- bounds.args %||% list()
-    bounds.args$directory <- directory
-    bounds.args$out <- out
-    bounds.args$true <- true
-    do.call(bounds.plot, bounds.args)
+    if(!is.null(out$bounds)) {
+      bounds.args <- bounds.args %||% list()
+      bounds.args$directory <- directory
+      bounds.args$out <- out
+      bounds.args$true <- true
+      do.call(bounds.plot, bounds.args)
+    }
 
-    if (!is.null(model.plot)) {
+    if (!is.null(model.plot) & !is.null(out$sim)) {
       model.args <- model.args %||% list()
       model.args$directory <- directory
       model.args$out <- out

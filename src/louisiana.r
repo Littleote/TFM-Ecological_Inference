@@ -68,7 +68,7 @@ run <- curry(
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
 table <- run(table, "education", X = var.education.gap)
-table <- run(table, "income and education", X = var.both)
+table <- run(table, "both", X = var.both)
 
 # LOGIT COVARIATE WITHOUT RANDOM EFFECT
 run <- curry(
@@ -79,7 +79,7 @@ run <- curry(
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
 table <- run(table, "education", X = var.education.gap)
-table <- run(table, "income and education", X = var.both)
+table <- run(table, "both", X = var.both)
 
 # CLUSTER
 run <- curry(
@@ -101,7 +101,7 @@ run <- curry(
 table <- run(table, "no covariate", X = NULL)
 table <- run(table, "income", X = var.income)
 table <- run(table, "education", X = var.education.gap)
-table <- run(table, "income and education", X = var.both)
+table <- run(table, "both", X = var.both)
 
 # SPATIAL
 run <- curry(
@@ -109,8 +109,8 @@ run <- curry(
   plot.call(spatial.plot, geom.louisiana, spatial.args, bounds.args),
   burn = 30000, BUGS = "WinBUGS", thin = 20
 )
-table <- run(table, "no adjacency", ADJ = NULL)
-table <- run(table, "louisiana map", ADJ = adjacency)
+table <- run(table, "no map", ADJ = NULL)
+table <- run(table, "louisiana", ADJ = adjacency)
 
 # LPHOM
 run <- curry(
@@ -127,8 +127,8 @@ run <- curry(
 )
 table <- run(table, "ecolRxC", ecol = ecolRxC::ecolRxC)
 
-write.csv(table, file = "louisiana_stats.csv")
-save.image(file = "louisiana.RData")
+write.csv(table, file = "out/louisiana_stats.csv")
+save.image(file = "out/louisiana.RData")
 
 plot.error(table, glue("../plots/{DATA}/error/full"))
 mean.sd.tradeoff(table, 2, 1, glue("../plots/{DATA}/error/full"))

@@ -53,4 +53,7 @@ plots/
 other/
 latex/
 data/US-counties/
+
+# Other files
 src/path.RData
+**/.ipynb_checkpoints/

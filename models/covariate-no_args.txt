@@ -20,14 +20,16 @@ model {
     }
     for (r in 1:R) {
       for (c in 1:C) {
-        beta.aux[t, r, c] <- exp(delta[r, c])
+        # Upper bound to ensure following calculations don't break
+        beta.aux[t, r, c] <- min(exp(delta[r, c]), 1e12)
       }
       beta[t, r, 1:C] ~ ddirch(lambda * beta.aux[t, r, 1:C])
     }
   }
   for (r in 1:R) {
     for (c in 1:(C-1)) {
-      delta.aux[r, c] ~ dnorm(0, 1e-6)
+      # Limit precision and range to prevent numerical problems (Infinities and NaNs)
+      delta.aux[r, c] ~ dnorm(0, 1e-6)T(-1e6, 1e6)
       delta[r, c] <- delta.aux[r, c]
     }
     delta[r, C] <- 0

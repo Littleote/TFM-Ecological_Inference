@@ -22,7 +22,8 @@ model {
     }
     for (r in 1:R) {
       for (c in 1:C) {
-        beta.aux[t, r, c] <- exp(delta[r, c] + inprod(gamma[1:P, r, c], X[t, 1:P]))
+        # Upper bound to ensure following calculations don't break
+        beta.aux[t, r, c] <- min(exp(delta[r, c] + inprod(gamma[1:P, r, c], X[t, 1:P])), 1e12)
       }
       beta[t, r, 1:C] ~ ddirch(lambda * beta.aux[t, r, 1:C])
     }
@@ -30,10 +31,12 @@ model {
   for (r in 1:R) {
     for (c in 1:(C-1)) {
     	for (p in 1:P) {
-    	  gamma.aux[p, r, c] ~ dnorm(0, 1e-6)
+          # Limit precision and range to prevent numerical problems (Infinities and NaNs)
+    	  gamma.aux[p, r, c] ~ dnorm(0, 1e-6)T(-1e6, 1e6)
     	  gamma[p, r, c] <- gamma.aux[p, r, c]
     	}
-      delta.aux[r, c] ~ dnorm(0, 1e-6)
+      # Limit precision and range to prevent numerical problems (Infinities and NaNs)
+      delta.aux[r, c] ~ dnorm(0, 1e-6)T(-1e6, 1e6)
       delta[r, c] <- delta.aux[r, c]
     }
     for (p in 1:P) {
