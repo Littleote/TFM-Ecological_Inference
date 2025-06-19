@@ -6,15 +6,24 @@ source("plotting.r")
 library(ei.Datasets)
 library(tidyr)
 library(glue)
-# LOC <- "Auckland Central"; combine = FALSE
-LOC <- "Waiariki"; combine = TRUE
 
+{
+  cat("What dataset to use?\n")
+  cat("1. Auckland Central\n")
+  cat("2. Waiariki\n")
+  selection <- as.numeric(readline())
+  if(selection == 1) { LOC <- "Auckland Central"; combine = FALSE }
+  else if(selection == 2) { LOC <- "Waiariki"; combine = TRUE }
+  else {stop("Value must be 1 or 2")}
+}
+  
 extract <- function(elec, region, threshold = 0.05, combine = TRUE) {
   index <- which(elec[,2] == region)
   count <- as.matrix(elec[[index, 5]][[1]][,-1])
   R <- nrow(count)
   C <- ncol(count)
   total <- sum(count)
+  # Aggregate low representation groups
   idx.1 <- which(apply(count, 1, sum) / total > threshold)
   other.1 <- (1:R)[-idx.1]
   idx.2 <- which(apply(count, 2, sum) / total > threshold)
@@ -24,6 +33,7 @@ extract <- function(elec, region, threshold = 0.05, combine = TRUE) {
   Y.1 <- as.data.frame(elec[[index, 3]][[1]][,-(1:2)])
   Y.2 <- as.data.frame(elec[[index, 4]][[1]][,-(1:2)])
   if (combine) {
+    # Combine votes in the same city
     aux.table <- elec[[index, 3]][[1]]
     aux.table[
       c(mapply(
@@ -38,6 +48,7 @@ extract <- function(elec, region, threshold = 0.05, combine = TRUE) {
     Y.1 <- aggregate(Y.1, list(city), sum)[,-1]
     Y.2 <- aggregate(Y.2, list(city), sum)[,-1]
   }
+  # Write data
   data$R <- length(idx.1) + 1
   data$C <- length(idx.2) + 1
   data$T <- nrow(Y.1)
@@ -47,6 +58,7 @@ extract <- function(elec, region, threshold = 0.05, combine = TRUE) {
   data$Y.2 <- Y.2[,idx.2]
   data$Y.2[,"Other"] <- apply(Y.2[,other.2], 1, sum)
   data$Y.2 <- as.matrix(data$Y.2)
+  # Write global table
   true$all <- matrix(NA, data$R, data$C)
   true$all[1:length(idx.1), 1:length(idx.2)] <- count[idx.1, idx.2]
   true$all[1:length(idx.1),data$C] <- apply(count[idx.1, other.2], 1, sum)
@@ -58,6 +70,7 @@ extract <- function(elec, region, threshold = 0.05, combine = TRUE) {
 }
 
 generate.local <- function(data, global, var, noise, explainability, force.exp, force.noise = 0.2 * force.exp, integer.count = TRUE) {
+  # Generate synthetic data
   sim.data <- runBUGS(
     "JAGS",
     data = c(
@@ -80,6 +93,7 @@ generate.local <- function(data, global, var, noise, explainability, force.exp, 
   sim.beta <- sim.data$BUGSoutput$last.values[[1]]$beta
   sim.counts <- sim.beta * array(data$Y.1, dim(sim.beta))
   if (integer.count) {
+    # Force total counts to be integers
     for (t in 1:data$T) {
       for (r in 1:data$R) {
         y <- data$Y.1[t, r]
@@ -93,11 +107,16 @@ generate.local <- function(data, global, var, noise, explainability, force.exp, 
       }
     }
   }
+  # Recompute local tables and marginals for synthetic data
   new.true <- list(
     beta = aperm(apply(sim.counts, c(1, 2), norm.1), c(2, 3, 1)),
     count = sim.counts
   )
   new.true$beta[is.nan(new.true$beta)] <- 1 / data$C
+  new.true$logit.beta <- aperm(apply(
+    new.true$beta, 1:2,
+    function(X){log(X + 1e-12) - mean(log(X + 1e-12))}
+  ), c(2, 3, 1))
   new.true$global.count <- apply(new.true$count, 2:3, sum)
   new.true$global.beta <- apply(new.true$beta, 2:3, mean)
   new.data <- list(
@@ -105,7 +124,6 @@ generate.local <- function(data, global, var, noise, explainability, force.exp, 
     R = data$R,
     C = data$C
   )
-  
   new.data <- c(new.data, list(
     Y.1 = apply(new.true$count, c(1, 2), sum),
     Y.2 = apply(new.true$count, c(1, 3), sum),
@@ -115,8 +133,11 @@ generate.local <- function(data, global, var, noise, explainability, force.exp, 
   ))
   new.data$f.1 <- t(apply(new.data$Y.1, 1, norm.1))
   new.data$f.2 <- t(apply(new.data$Y.2, 1, norm.1))
+  
+  # Find final noise and exp. estimates
   properties <- list(
-    explainability = mean(apply(new.true$beta, 2:3, function(Y) { abs(cor(var, Y)) } )),
+    approx.exp = mean(apply(new.true$beta, 2:3, function(Y) { abs(cor(var, Y)) } )),
+    explainability = mean(apply(new.true$logit.beta, 2:3, function(Y) { abs(cor(var, Y)) } )),
     noise = mean(apply(new.true$beta, 2:3, var ) / (new.true$global.beta * (1 - new.true$global.beta)))
   )
   return(list(true = new.true, data = new.data, properties = properties))
@@ -133,7 +154,9 @@ source("covariate.r")
 table <- NULL
 
 for (i in 1:9) {
-  print(i)
+  cat("Running for configuration", i, "\n")
+  cat("Target noise =", noise.range[i], "\n")
+  cat("Target explainability =", exp.range[i], "\n")
   out <- generate.local(
     info$data, info$true$all.beta, var.X, noise = noise.range[i],
     force.exp = ifelse(i %% 3 == 0, 1e5, 1e4),
@@ -148,32 +171,36 @@ for (i in 1:9) {
   sub.table <- NULL
 
   # LOGIT COVARIATE
-  print("Logit covariate")
+  cat("Logit covariate")
   run <- curry(
     logit.covariate.model, "logit covariate", data, true, BUGS.config,
     plot.call(covariate.plot, NULL, NULL, bounds.args),
-    burn = 30000, iter = 2000, thin = 10, rand.effects = TRUE
+    burn = 30, iter = 2, thin = 1, rand.effects = TRUE
   )
+  cat(".")
   sub.table <- run(sub.table, "no covariate", X = NULL)
+  cat(".")
   sub.table <- run(sub.table, "with covariate", X = var.X)
+  cat(".\n")
 
   # COVARIATE
-  print("King's covariate")
+  cat("King's covariate")
   run <- curry(
     covariate.model, "covariate", data, true, BUGS.config,
     plot.call(covariate.plot, NULL, NULL, bounds.args),
-    burn = 30000, iter = 2000, thin = 10
+    burn = 30, iter = 2, thin = 1
   )
+  cat(".")
   sub.table <- run(sub.table, "no covariate", X = NULL)
+  cat(".")
   sub.table <- run(sub.table, "with covariate", X = var.X)
+  cat(".\n")
 
   sub.table["Noise"] <- out$properties$noise
-  sub.table["Explainability"] <- out$properties$explainability
+  sub.table["Explainability"] <- out$properties$approx.exp
+  sub.table["Exact Explainability"] <- out$properties$explainability
   table <- rbind(table, sub.table)
 }
-
-array(table[["Noise"]], c(4, 3, 3))[1,,]
-array(table[["Explainability"]], c(4, 3, 3))[1,,]
 
 write.csv(table, file = glue("out/New Zealand-{LOC}_stats.csv"))
 save.image(file = glue("out/New Zealand-{LOC}.RData"))

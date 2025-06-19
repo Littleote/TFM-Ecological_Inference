@@ -64,42 +64,7 @@ bounds.plot <- function(out, true, ylim = NULL, directory = NULL, ...) {
   dev.off()
 }
 
-bias.variance.tradeoff <- function(table, R, C, directory = NULL) {
-  # Override save functions if not saving
-  if (is.null(directory)) {
-    png <- function(...) {}
-    dev.off <- function(...) {}
-  } else {
-    if (!dir.exists(directory)) dir.create(directory, recursive = TRUE)
-  }
-  groups <- factor(mapply(
-    function(x) {
-      strsplit(x, ", ")[[1]][1]
-    },
-    dimnames(table)[[1]]
-  ))
-  par(mar = c(4, 4, 2, 0) + 0.1)
-  for (r in 1:R) {
-    for (c in 1:C) {
-      for (kind in c("Individual", "Region")) {
-        bias.2 <- table[, glue("{kind} bias [{r}, {c}]")]^2
-        variance <- table[, glue("{kind} deviation [{r}, {c}]")]^2
-        png(file = glue("{directory}/bias^2-variance for {r}, {c}.png"), width = WIDTH, height = HEIGHT)
-        plot.tradeoff(
-          bias.2, variance, groups,
-          mirror = F,
-          xlab = bquote(Bias^2 * .("[") * beta[.(r) ~ .(c)] * .("]")),
-          ylab = bquote(Var * .("[") * beta[.(r) ~ .(c)] * .("]")),
-          main = bquote(.(kind) * .(" bias")^2 * .("-variance for ") * beta[.(r) ~ .(c)])
-        )
-        dev.off()
-      }
-    }
-  }
-  par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
-}
-
-mean.sd.tradeoff <- function(table, R, C, directory = NULL) {
+mean.deviation.plot <- function(table, R, C, directory = NULL) {
   # Override save functions if not saving
   if (is.null(directory)) {
     png <- function(...) {}
@@ -117,19 +82,17 @@ mean.sd.tradeoff <- function(table, R, C, directory = NULL) {
   par(mar = c(4, 4, 2, 0) + 0.1)
   for (r in 1:R) {
     for (c in 1:C) {
-      for (kind in c("Individual", "Region")) {
-        mean <- table[, glue("{kind} bias [{r}, {c}]")]
-        sd <- table[, glue("{kind} deviation [{r}, {c}]")]
-        png(file = glue("{directory}/bias-deviation for {r}, {c}.png"), width = WIDTH, height = HEIGHT)
-        plot.tradeoff(
-          mean, sd, groups,
-          mirror = T,
-          xlab = bquote(Bias * .("[") * beta[.(r) ~ .(c)] * .("]")),
-          ylab = bquote(sigma * .("[") * beta[.(r) ~ .(c)] * .("]")),
-          main = bquote(.(kind) * .(" bias-deviation for ") * beta[.(r) ~ .(c)])
-        )
-        dev.off()
-      }
+      mean <- table[, glue("Bias [{r}, {c}]")]
+      sd <- table[, glue("Deviation [{r}, {c}]")]
+      png(file = glue("{directory}/bias-deviation for {r}, {c}.png"), width = WIDTH, height = HEIGHT)
+      plot.tradeoff(
+        mean, sd, groups,
+        mirror = T,
+        xlab = bquote(Bias * .("[") * beta[.(r) ~ .(c)] * .("]")),
+        ylab = bquote(sigma * .("[") * beta[.(r) ~ .(c)] * .("]")),
+        main = bquote(.("Bias-Deviation for ") * beta[.(r) ~ .(c)])
+      )
+      dev.off()
     }
   }
   par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
@@ -207,7 +170,7 @@ plot.error <- function(table, directory = NULL) {
   )
 
   palette <- rainbow(length(levels(groups)))
-  for (err in c("local MAE", "local MSE", "global MAE", "global MSE")) {
+  for (err in c("Local MAE", "Local MSE", "Global MAE", "Global MSE")) {
     png(file = glue("{directory}/error_{err}.png"), width = WIDTH, height = HEIGHT)
     par(mar = c(2, 10, 2, 0) + 0.1)
     barplot(table[, err], names.arg = config, col = palette[groups], las = 2, main = err, horiz = TRUE)

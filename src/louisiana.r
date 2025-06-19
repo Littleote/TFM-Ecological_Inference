@@ -8,6 +8,9 @@ source("utilities.r")
 
 DATA <- "Louisiana"
 df <- read.csv("../data/Louisiana-2020_presidential_election.csv", skip = 1)
+if(!file.exists("../data/US-counties")) {
+  unzip("../data/US-counties.zip", exdir = "../data")
+}
 geom <- st_read("../data/US-counties/tl_2020_us_county.shp")
 df.income <- read.csv("../data/Louisiana-2020_income_adjusted.csv")
 df.education <- read.csv("../data/Louisiana-2020_education.csv")
@@ -55,31 +58,31 @@ source("logit_covariate.r")
 source("cluster.r")
 source("spatial.r")
 source("covariate.r")
+library(lphom)
+library(ecolRxC)
 source("wrapper.r")
 
 table <- NULL
 
-# LOGIT COVARIATE
+# COVARIATE
 run <- curry(
-  logit.covariate.model, "logit covariate", data, true, BUGS.config,
+  covariate.model, "covariate", data, true, BUGS.config,
   plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 90000, thin = 20, rand.effects = TRUE
+  burn = 70000, thin = 20
 )
-table <- run(table, "no covariate", X = NULL)
-table <- run(table, "income", X = var.income)
-table <- run(table, "education", X = var.education.gap)
-table <- run(table, "both", X = var.both)
+table <- run(table, "No covariate", X = NULL)
+table <- run(table, "Income", X = var.income)
+table <- run(table, "Education", X = var.education.gap)
+table <- run(table, "Both", X = var.both)
 
-# LOGIT COVARIATE WITHOUT RANDOM EFFECT
+# SPATIAL
 run <- curry(
-  logit.covariate.model, "logit covariate without random effects", data, true, BUGS.config,
-  plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 10000, rand.effects = FALSE
+  spatial.model, "spatial", data, true, BUGS.config,
+  plot.call(spatial.plot, geom.louisiana, spatial.args, bounds.args),
+  burn = 30000, BUGS = "WinBUGS", thin = 20
 )
-table <- run(table, "no covariate", X = NULL)
-table <- run(table, "income", X = var.income)
-table <- run(table, "education", X = var.education.gap)
-table <- run(table, "both", X = var.both)
+table <- run(table, "No map", ADJ = NULL)
+table <- run(table, "Louisiana", ADJ = adjacency)
 
 # CLUSTER
 run <- curry(
@@ -92,44 +95,45 @@ table <- run(table, "2 clusters", K = 2)
 table <- run(table, "3 clusters", K = 3)
 table <- run(table, "4 clusters", K = 4)
 
-# COVARIATE
-run <- curry(
-  covariate.model, "covariate", data, true, BUGS.config,
-  plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
-  burn = 70000, thin = 20
-)
-table <- run(table, "no covariate", X = NULL)
-table <- run(table, "income", X = var.income)
-table <- run(table, "education", X = var.education.gap)
-table <- run(table, "both", X = var.both)
-
-# SPATIAL
-run <- curry(
-  spatial.model, "spatial", data, true, BUGS.config,
-  plot.call(spatial.plot, geom.louisiana, spatial.args, bounds.args),
-  burn = 30000, BUGS = "WinBUGS", thin = 20
-)
-table <- run(table, "no map", ADJ = NULL)
-table <- run(table, "louisiana", ADJ = adjacency)
-
-# LPHOM
-run <- curry(
-  lphom.model, "lphom", data, true, NULL,
-  plot.call(NULL, geom.louisiana, NULL, bounds.args)
-)
-table <- run(table, "nslphom", lphom = lphom::nslphom)
-
 # ECOL RxC
 run <- curry(
   ecol.model, "ecolRxC", data, true, NULL,
   plot.call(NULL, geom.louisiana, NULL, bounds.args),
   confidence = 0.95
 )
-table <- run(table, "ecolRxC", ecol = ecolRxC::ecolRxC)
+table <- run(table, "ecolRxC", ecol = ecolRxC)
+
+# LPHOM
+run <- curry(
+  lphom.model, "lphom", data, true, NULL,
+  plot.call(NULL, geom.louisiana, NULL, bounds.args)
+)
+table <- run(table, "nslphom", lphom = nslphom)
+
+# LOGIT COVARIATE
+run <- curry(
+  logit.covariate.model, "logit covariate", data, true, BUGS.config,
+  plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
+  burn = 90000, thin = 20, rand.effects = TRUE
+)
+table <- run(table, "No covariate", X = NULL)
+table <- run(table, "Income", X = var.income)
+table <- run(table, "Education", X = var.education.gap)
+table <- run(table, "Both", X = var.both)
+
+# LOGIT COVARIATE WITHOUT RANDOM EFFECT
+run <- curry(
+  logit.covariate.model, "logit covariate without random effects", data, true, BUGS.config,
+  plot.call(covariate.plot, geom.louisiana, NULL, bounds.args),
+  burn = 10000, rand.effects = FALSE
+)
+table <- run(table, "No covariate", X = NULL)
+table <- run(table, "Income", X = var.income)
+table <- run(table, "Education", X = var.education.gap)
+table <- run(table, "Both", X = var.both)
 
 write.csv(table, file = "out/louisiana_stats.csv")
 save.image(file = "out/louisiana.RData")
 
 plot.error(table, glue("../plots/{DATA}/error/full"))
-mean.sd.tradeoff(table, 2, 1, glue("../plots/{DATA}/error/full"))
-bias.variance.tradeoff(table, 2, 1, glue("../plots/{DATA}/error/full"))
+mean.deviation.plot(table, 2, 1, glue("../plots/{DATA}/error/full"))

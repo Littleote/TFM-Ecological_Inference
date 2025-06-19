@@ -1,29 +1,43 @@
 library(tidyr)
 
+# Set path once
 if(!file.exists("path.RData")){
-  # JAGS.path <- rstudioapi::selectDirectory(
-  #   caption = "Select JAGS directory",
-  #   label = "Select",
-  #   path = rstudioapi::getActiveProject()
-  # )
   WinBUGS.path <- rstudioapi::selectDirectory(
     caption = "Select WinBUGS Directory",
     label = "Select",
     path = rstudioapi::getActiveProject()
   )
-  save(file = "path.RData", list = c("WinBUGS.path")) # "JAGS.path"
+  save(file = "path.RData", list = c("WinBUGS.path"))
 } else {
   load("path.RData")
 }
 
+# Helper functions
 norm.1 <- function(v) {
-  v / sum(v)
+  if(sum(v) < 1e-100) {
+    0 * v + 1 / length(v)
+  } else {
+    v / sum(v)
+  }
 }
 
 model.file <- function(name) {
   normalizePath(paste0("../models/", name, ".txt"))
 }
 
+get.array <- function(arr, shape) {
+  aperm(array(arr, rev(shape)), length(shape):1)
+}
+
+BUGS.config <- function(..., iter = 2000, burn = 1000, chain = 4, thin = 10, BUGS = "JAGS") {
+  return(list(Iterations = iter, Burned = burn, Chains = chain, Thinning = thin, BUGS = BUGS))
+}
+
+as.global <- function(X) {
+  apply(X, 2:3, sum)
+}
+
+# Sort BUGS results
 "[.BUGS.param" <- function(x, i) {
   class(x) <- "list"
   x <- x[i]
@@ -48,7 +62,7 @@ model.file <- function(name) {
 
 "==.BUGS.param" <- function(a, b) ifelse(a > b || b > a, FALSE, TRUE)
 
-
+# Utility functions
 index <- function(names) {
   if (!is.null(dim(names))) {
     names <- dimnames(names)[[3]]
@@ -126,42 +140,24 @@ hi.low <- function(arr, N, R, C) {
   return(bounds)
 }
 
-get.array <- function(arr, shape) {
-  aperm(array(arr, rev(shape)), length(shape):1)
-}
-
-BUGS.config <- function(..., iter = 2000, burn = 1000, chain = 4, thin = 10, BUGS = "JAGS") {
-  return(list(Iterations = iter, Burned = burn, Chains = chain, Thinning = thin, BUGS = BUGS))
-}
-
 bias.deviation <- function(out, true, data) {
   R <- data$R
   C <- data$C
-  indiv.bias <- array(dim = c(R, C))
-  indiv.sd <- array(dim = c(R, C))
-  region.bias <- array(dim = c(R, C))
-  region.sd <- array(dim = c(R, C))
+  bias <- array(dim = c(R, C))
+  deviation <- array(dim = c(R, C))
   for (r in 1:R) {
     for (c in 1:C) {
-      diff <- out$beta[, r, c] - true$beta[, r, c]
-      region.bias[r, c] <- mean(diff)
-      region.sd[r, c] <- sd(diff)
-      diff <- rep(out$beta[, r, c], data$Y.1[, r]) - rep(true$beta[, r, c], data$Y.1[, r])
-      indiv.bias[r, c] <- mean(diff)
-      indiv.sd[r, c] <- sd(diff)
+      error <- out$beta[, r, c] - true$beta[, r, c]
+      weight <- data$Y.1[, r]
+      bias[r, c] <- sum(weight * error) / sum(weight)
+      deviation[r, c] <- sqrt(sum(weight * (error - bias[r, c])^2) / (sum(weight) - 1))
     }
   }
 
   return(list(
-    indiv.bias = indiv.bias,
-    indiv.sd = indiv.sd,
-    region.bias = region.bias,
-    region.sd = region.sd
+    bias = bias,
+    deviation = deviation
   ))
-}
-
-as.global <- function(X) {
-  apply(X, 2:3, sum)
 }
 
 get.error <- function(out, true) {
@@ -169,14 +165,12 @@ get.error <- function(out, true) {
   tg.count <- as.global(true$count)
   list(
     local = list(
-      EI = sum(abs(out$count - true$count)) / sum(true$count),
-      # EPW = sum(true$count * abs(out$beta - true$beta)) / sum(true$count),
-      EQ = sqrt(sum((out$count - true$count)^2)) / sum(true$count)
+      MAE = sum(abs(out$count - true$count)) / sum(true$count),
+      MSE = sqrt(sum((out$count - true$count)^2)) / sum(true$count)
     ),
     global = list(
-      EI = sum(abs(og.count - tg.count)) / sum(tg.count),
-      # EPW = sum(tg.count * abs(og.beta - tg.beta)) / sum(tg.count),
-      EQ = sqrt(sum((og.count - tg.count)^2)) / sum(tg.count)
+      MAE = sum(abs(og.count - tg.count)) / sum(tg.count),
+      MSE = sqrt(sum((og.count - tg.count)^2)) / sum(tg.count)
     )
   )
 }
@@ -214,16 +208,14 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
   in.bounds <- apply(out$bounds[1, , , ] < true$beta & true$beta < out$bounds[2, , , ], c(2, 3), mean)
 
   elems <- c(
-    bias.sd$region.bias,
-    bias.sd$indiv.bias,
-    bias.sd$region.sd,
-    bias.sd$indiv.sd,
+    unlist(bias.sd),
+    out$beta[1,,],
+    out$count[1,,],
     median.bound.size,
     in.bounds,
     execution.time[3],
     unlist(error$local),
-    unlist(error$global),
-    ifelse(is.null(out$sim), "False", "True")
+    unlist(error$global)
   )
 
 
@@ -234,24 +226,25 @@ test.model <- function(model, name, table = NULL, data, true, ..., config = NULL
       paste(
         rep(
           c(
-            "Region bias",
-            "Individual bias",
-            "Region deviation",
-            "Individual deviation",
-            "Bounds size",
-            "True in bounds"
+            "Bias",
+            "Deviation",
+            "Example Beta",
+            "Example Counts",
+            "Bounds Size",
+            "Accuracy"
           ),
           each = length(naming)
         ),
         naming
       ),
-      "Execution time",
-      paste(rep(c("local", "global"), each=2), c("MAE", "MSE")),
-      "MCMC"
+      "Execution Time",
+      paste(rep(c("Local", "Global"), each=2), c("MAE", "MSE"))
     )
   } else {
     table[name, 1:length(elems)] <- elems
   }
+  table[name, "Model"] <- name
+  table[name, "MCMC"] <- ifelse(is.null(out$sim), "False", "True")
   if (!is.null(config)) {
     extra <- config(out, true, data, ...)
     for (var.name in names(extra)) {

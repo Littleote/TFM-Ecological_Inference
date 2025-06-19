@@ -3,7 +3,7 @@ setwd(wd)
 library(glue)
 
 R <- 2
-table <- read.csv(file = glue("out/louisiana_stats.csv"))
+table <- read.csv(file = glue("out/louisiana_stats.csv"), check.names = FALSE)
 
 if (!dir.exists("../latex/taules")) {
   dir.create("../latex/taules", recursive = TRUE)
@@ -26,20 +26,20 @@ for(r in 1:R) {
   Y.index <- sprintf("%s & $Y_{%d, 1}$", Y.index, r)
 }
 cat(
-  "\\begin{table}[!ht]\n",
+  "\\begin{table}\n",
   "\t\\centering\n",
-  "\t\\begin{tblr}{>{\\raggedright\\arraybackslash}m{80pt}>{\\raggedright\\arraybackslash}m{60pt}",
+  "\t\\begin{tblr}{>{\\raggedright\\arraybackslash}m{75pt}>{\\raggedright\\arraybackslash}m{55pt}",
   rep("r", R + 1),
   "}\n",
   "\t\t\\hline\n",
-  "\t\tMethod & Parameters",
+  "\t\tMethod & Model",
   Y.index,
   "& Execution time \\\\ \\hline\n",
   file = file.name
 )
 last.item <- ""
 for(i in 1:nrow(table)) {
-  index <- strsplit(table[i, 1], ",")[[1]]
+  index <- strsplit(table[i, "Model"], ",")[[1]]
   name <- "~"
   if(last.item != index[1]) {
     last.item <- index[1]
@@ -52,11 +52,11 @@ for(i in 1:nrow(table)) {
   }
   b.err <- ""
   for(r in 1:R) {
-    bias <- table[i, glue("Individual.bias..{r}..1.")]
-    err <- 1.96 * table[i, glue("Individual.deviation..{r}..1.")]
+    bias <- table[i, glue("Bias [{r}, 1]")]
+    err <- 1.96 * table[i, glue("Deviation [{r}, 1]")]
     b.err <- sprintf("%s & $%.3f\\pm%.3f$", b.err, bias, err)
   }
-  time <- sprintf("%.2fs", table[i, "Execution.time"])
+  time <- sprintf("$%.2f$s", table[i, "Execution Time"])
   cat(
     "\t\t",
     glue("{name} & {index[2]}{b.err} & {time}"),
@@ -67,7 +67,7 @@ for(i in 1:nrow(table)) {
 
 cat(
   "\t\\end{tblr}\n",
-  "\t\\caption{Louisiana bias and execution time.}\n",
+  "\t\\caption{Louisiana bias and execution time for each model.}\n",
   "\t\\label{tbl:louisiana-bias-time}\n",
   "\\end{table}",
   file = file.name, append = TRUE
@@ -83,13 +83,13 @@ for(r in 1:R) {
   Y.bound <- sprintf("%s & Size & Acc.", Y.bound)
 }
 cat(
-  "\\begin{table}[!ht]\n",
+  "\\begin{table}\n",
   "\t\\centering\n",
-  "\t\\begin{tblr}{>{\\raggedright\\arraybackslash}m{60pt}>{\\raggedright\\arraybackslash}m{60pt}",
+  "\t\\begin{tblr}{>{\\raggedright\\arraybackslash}m{75pt}>{\\raggedright\\arraybackslash}m{55pt}",
   rep("r", 2 * R + 2 * 2),
   "}\n",
   "\t\t\\hline\n",
-  "\t\t\\SetCell[r=2]{}{Method} & \\SetCell[r=2]{}{Parameters}",
+  "\t\t\\SetCell[r=2]{}{Method} & \\SetCell[r=2]{}{Model}",
   Y.index,
   "& \\SetCell[c=2]{}{Local Error} & & \\SetCell[c=2]{}{Global Error} \\\\ \\hline\n",
   "\t\t~&~",
@@ -112,14 +112,14 @@ for(i in 1:nrow(table)) {
   }
   bounds <- ""
   for(r in 1:R) {
-    size <- table[i, glue("Bounds.size..{r}..1.")]
-    percent <- 100 * table[i, glue("True.in.bounds..{r}..1.")]
+    size <- table[i, glue("Bounds Size [{r}, 1]")]
+    percent <- 100 * table[i, glue("Accuracy [{r}, 1]")]
     bounds <- sprintf("%s & $%.3f$ & $%.0f\\%%$", bounds, size, percent)
   }
-  local.MAE <- sprintf("%.3f", table[i, "local.MAE"])
-  local.MSE <- sprintf("%.3f", table[i, "local.MSE"])
-  global.MAE <- sprintf("%.3f", table[i, "global.MAE"])
-  global.MSE <- sprintf("%.3f", table[i, "global.MSE"])
+  local.MAE <- sprintf("$%.3f$", table[i, "Local MAE"])
+  local.MSE <- sprintf("$%.3f$", table[i, "Local MSE"])
+  global.MAE <- sprintf("$%.3f$", table[i, "Global MAE"])
+  global.MSE <- sprintf("$%.3f$", table[i, "Global MSE"])
   cat(
     "\t\t",
     glue("{name} & {index[2]}{bounds} & {local.MAE} & {local.MSE} & {global.MAE} & {global.MSE}"),
@@ -130,7 +130,7 @@ for(i in 1:nrow(table)) {
 
 cat(
   "\t\\end{tblr}\n",
-  "\t\\caption{Louisiana bounds and error.}\n",
+  "\t\\caption{Louisiana bounds and error for each model.}\n",
   "\t\\label{tbl:louisiana-bounds-error}\n",
   "\\end{table}",
   file = file.name, append = TRUE
