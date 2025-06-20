@@ -23,7 +23,7 @@ name.map[["ecolRxC"]] <- "Latent structure model"
 file.name <- "../latex/taules/louisiana_bias_time.tex"
 Y.index <- ""
 for(r in 1:R) {
-  Y.index <- sprintf("%s & $Y_{%d, 1}$", Y.index, r)
+  Y.index <- sprintf("%s & $\\text{Bias}(\\beta_{%d, 1})$", Y.index, r)
 }
 cat(
   "\\begin{table}\n",
@@ -79,7 +79,7 @@ file.name <- "../latex/taules/louisiana_bounds_error.tex"
 Y.index <- ""
 Y.bound <- ""
 for(r in 1:R) {
-  Y.index <- sprintf("%s & \\SetCell[c=2]{}{$Y_{%d, 1}$ bounds} & ", Y.index, r)
+  Y.index <- sprintf("%s & \\SetCell[c=2]{}{$\\beta_{%d, 1}$ bounds} & ", Y.index, r)
   Y.bound <- sprintf("%s & Size & Acc.", Y.bound)
 }
 cat(
