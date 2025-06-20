@@ -135,3 +135,57 @@ cat(
   "\\end{table}",
   file = file.name, append = TRUE
 )
+
+# =================================================================================
+
+df <- read.csv("../data/Louisiana-2020_presidential_election.csv", skip = 1)
+true.count <- unlist(df[6, paste0(c("WHITE", "BLACK"), ".", c(1, 1, 2, 2))])
+idx <- paste0("Example Counts [", 1:2, ", ", c(1, 1, 2, 2), "]")
+format <- function(counts, bf = FALSE) {
+  if (bf) {
+    return(
+      do.call(sprintf, c(
+        list("$\\mathbf{%d}$ & $\\mathbf{%d}$ & $\\mathbf{%d}$ & $\\mathbf{%d}$"),
+        as.list(counts)
+      ))
+    )
+  }
+  do.call(sprintf, c(list("$%d$ & $%d$ & $%d$ & $%d$"), as.list(counts)))
+}
+
+file.name <- "../latex/taules/louisiana_counts.tex"
+cat(
+  "\\begin{table}\n",
+  "\t\\centering\n",
+  "\t\\begin{tblr}{lrrrr",
+  "}\n",
+  "\t\t\\hline\n",
+  "\t\tModel & $Y_{1,\\, 1, 1}$ & $Y_{1,\\, 2, 1}$ & $Y_{1,\\, 1, 2}$ & $Y_{1,\\, 2, 2}$ \\\\ \\hline\n",
+  "\t\t\\textbf{True counts} & ",
+  format(true.count, bf = TRUE),
+  " \\\\ \n",
+  file = file.name
+)
+
+for(i in c(4, 5, 10, 11, 12, 13, 20)) {
+  name <- strsplit(table[i, "Model"], ", ")[[1]]
+  cat(
+    "\t\t",
+    name.map[[name[1]]],
+    ": ",
+    name[2],
+    " & ",
+    format(round(table[i, idx])),
+    " \\\\ \n",
+    file = file.name, append = TRUE
+  )
+}
+
+cat(
+  "\t\t\\hline\n",
+  "\t\\end{tblr}\n",
+  "\t\\caption{Counts predicted for Acadia for the best models of each method}\n",
+  "\t\\label{tbl:louisiana-example}\n",
+  "\\end{table}",
+  file = file.name, append = TRUE
+)
