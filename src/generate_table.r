@@ -16,7 +16,7 @@ name.map[["cluster"]] <- "Cluster model"
 name.map[["spatial"]] <- "Spatial model"
 name.map[["covariate"]] <- "Covariate model"
 name.map[["lphom"]] <- "Linear programming model"
-name.map[["ecolRxC"]] <- "Latent space model"
+name.map[["ecolRxC"]] <- "Latent structure model"
 
 # =================================================================================
 
